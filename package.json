@@ -1,0 +1,25 @@
+{
+  "name": "ai-quote-agent",
+  "version": "1.0.0",
+  "description": "Profile Brick & Tile internal quoting system: AI quoting assistant, saved quotations and pricing management",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "@electric-sql/pglite": "^0.3.14",
+    "express": "^5.2.1",
+    "html2pdf.js": "^0.14.0",
+    "openai": "^7.31.0",
+    "pg": "^8.16.3"
+  }
+}

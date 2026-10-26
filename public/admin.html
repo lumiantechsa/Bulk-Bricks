@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile Brick &amp; Tile – Quotations &amp; Pricing</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import { api, can, signIn, sidebarHtml, bindSidebar, liveUpdates, toast } from "/common.js";
+    import { quotationsPage } from "/quotations-page.js";
+    import { pricingPage } from "/pricing-page.js";
+    import { managePages } from "/manage-pages.js";
+
+    const root = document.getElementById("root");
+    const me = await signIn(root);
+    const user = me.user;
+
+    const pages = { ...quotationsPage, ...pricingPage, ...managePages };
+    const managerPages = () => [
+      can(user, "supervise_chats") && ["overview", "Overview"],
+      can(user, "supervise_chats") && ["conversations", "Assistant chats", badges.conversations],
+      can(user, "manage_staff") && ["staff", "Employees"],
+      can(user, "manage_staff") && ["activity", "Activity log"],
+      ["settings", "Company settings"],
+    ].filter(Boolean);
+    const badges = {};
+
+    let current = { route: null, page: null, cleanup: null };
+    let live = false;
+
+    function shell(active) {
+      root.innerHTML = `<div class="app">
+        ${sidebarHtml({ active, user, extra: managerPages() })}
+        <main class="main" id="main"></main>
+      </div>`;
+      bindSidebar(root);
+      const userBox = root.querySelector(".side-user > div");
+      userBox.insertAdjacentHTML("beforeend", `<div class="muted small" id="liveState"><span class="live-dot ${live ? "on" : ""}"></span>${live ? "Live" : "Connecting…"}</div>`);
+    }
+
+    // Pages can refuse to be left (unsaved changes).
+    window.addEventListener("hashchange", async (e) => {
+      if (current.page?.canLeave && !current.page.canLeave()) {
+        history.replaceState(null, "", new URL(e.oldURL).hash);
+        return;
+      }
+      route();
+    });
+    window.addEventListener("beforeunload", (e) => {
+      if (current.page?.canLeave && !current.page.canLeave(true)) e.preventDefault();
+    });
+
+    async function route() {
+      const [name, ...rest] = (location.hash.slice(1) || "quotations").split("/");
+      const page = pages[name] ?? pages.quotations;
+      const section = pages[name] ? name : "quotations";
+      current.cleanup?.();
+      shell(section);
+      const main = document.getElementById("main");
+      main.innerHTML = `<div class="loading">Loading…</div>`;
+      const ctx = { user, main, api, toast, go: (hash) => { location.hash = hash; }, args: rest.map(decodeURIComponent) };
+      current = { route: name, page: null, cleanup: null };
+      try {
+        const instance = (await page(ctx)) ?? {};
+        current.page = instance;
+        current.cleanup = instance.cleanup;
+      } catch (err) {
+        main.innerHTML = `<div class="notice bad">${err.message}</div>`;
+      }
+    }
+
+    liveUpdates(
+      (ev) => current.page?.onEvent?.(ev),
+      (on) => {
+        live = on;
+        const el = document.getElementById("liveState");
+        if (el) el.innerHTML = `<span class="live-dot ${on ? "on" : ""}"></span>${on ? "Live" : "Reconnecting…"}`;
+      },
+    );
+
+    route();
+  </script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Quoting Assistant – Profile Brick &amp; Tile</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import { esc, quoteCardHtml, unitPlural, api as staffApi, signIn, sidebarHtml, bindSidebar, liveUpdates, toast } from "/common.js";
+    import { DOC_WIDTH, downloadQuotePdf, quoteDocHtml } from "/quote-doc.js";
+    import { createJobForm } from "/job-form.js";
+
+    const root = document.getElementById("root");
+    const me = await signIn(root);
+    root.innerHTML = `<div class="app">
+      ${sidebarHtml({ active: "assistant", user: me.user })}
+      <div class="workspace">
+        <aside class="job-panel">
+          <form id="job" class="stack" novalidate>
+            <h2>Job details</h2>
+            <p class="muted small" style="margin:0">Enter what the customer needs. Prices come from the live price list.</p>
+            <div id="jobFields"></div>
+            <div class="error" id="jobError" hidden style="padding:0"></div>
+            <button class="primary" id="calc" style="width:100%">Calculate quote</button>
+          </form>
+        </aside>
+        <div class="chat-shell">
+          <header class="chat-header">
+            <div>
+              <h1 id="company">Quoting assistant</h1>
+              <div class="muted small">Fill in the job form or describe the job. Every quotation is saved under Quotations.</div>
+            </div>
+            <button id="restart" title="Start a new conversation">New chat</button>
+          </header>
+          <main class="messages" id="messages" aria-live="polite"></main>
+          <div class="error" id="error" hidden></div>
+          <form class="composer" id="composer">
+            <textarea id="input" rows="1" placeholder="Ask anything, or describe the job, e.g. 40 m² red interlocking pavers plus 2,000 clay stock bricks, 25 km away, with installation" aria-label="Message"></textarea>
+            <button class="primary" id="send">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>`;
+    bindSidebar(root);
+
+    // The open chat is remembered per employee in this browser (a convenience; the chat itself is stored on the server).
+    const KEY = `quoteChat:${me.user.id}`;
+    const $ = (id) => document.getElementById(id);
+    let session = null; // { id, token }
+    let state = null;
+    let sending = false;
+
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
+    const store = (s) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
+    const api = (path, options = {}) =>
+      staffApi(path, { ...options, headers: { "x-conversation-token": session?.token ?? "", ...options.headers } });
+
+    // ---------- Job form ----------
+    let jobForm = null;
+    let syncedJob = null; // last job written into the form, as JSON
+
+    function syncForm() {
+      if (!jobForm) {
+        jobForm = createJobForm($("jobFields"), { options: state.formOptions, currency: state.currency });
+      }
+      // Only overwrite the form when the saved job changed (e.g. the agent set it from chat).
+      const json = JSON.stringify(state.job);
+      if (state.job && json !== syncedJob) jobForm.write(state.job);
+      syncedJob = json;
+    }
+
+    function jobError(msg) {
+      $("jobError").hidden = !msg;
+      $("jobError").textContent = msg || "";
+    }
+
+    $("job").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (sending) return;
+      const missing = jobForm.missing();
+      if (missing.length) return jobError(`Please fill in: ${missing.join(", ")}.`);
+      const job = jobForm.read();
+      jobError("");
+      showError("");
+      sending = true;
+      $("calc").disabled = $("send").disabled = true;
+      render();
+      try {
+        state = await api(`/api/chat/${session.id}/job`, { method: "POST", body: JSON.stringify({ job }) });
+        syncedJob = JSON.stringify(state.job);
+      } catch (err) {
+        if (err.body?.transcript) state = err.body;
+        (err.status === 400 ? jobError : showError)(err.message);
+      } finally {
+        sending = false;
+        $("calc").disabled = $("send").disabled = false;
+        render();
+      }
+    });
+
+    function render() {
+      if (!state) return;
+      syncForm();
+      $("company").textContent = state.companyName;
+      document.title = `${state.companyName} – Quoting assistant`;
+      const quotes = Object.fromEntries(state.quotes.map((q) => [q.id, q]));
+      // Every estimate or quote can be downloaded as a quotation; the latest one is previewed.
+      docs = {};
+      const lastDoc = state.transcript.findLastIndex((t) => t.type === "estimate" || (t.type === "quote" && quotes[t.quoteId]));
+      const withDoc = (i, card, data) => {
+        docs[i] = data;
+        const open = i === lastDoc || expandedDocs.has(i);
+        return `${card}<div class="doc-actions">
+            <button class="primary" data-download="${i}">Download quotation (PDF)</button>
+            ${i === lastDoc ? "" : `<button data-preview="${i}">${open ? "Hide" : "Show"} quotation</button>`}
+          </div>${open ? `<div class="doc-scaler">${quoteDocHtml(data)}</div>` : ""}`;
+      };
+      const parts = state.transcript.map((t, i) => {
+        if (t.role === "customer") return `<div class="msg customer">${esc(t.text)}</div>`;
+        if (t.role === "agent") return `<div class="msg agent">${esc(t.text)}</div>`;
+        if (t.role === "staff") return `<div class="msg staff"><span class="who">${esc(t.author)} · manager</span>${esc(t.text)}</div>`;
+        if (t.type === "quote" && quotes[t.quoteId]) {
+          const q = quotes[t.quoteId];
+          const actions = `<div class="row" style="margin-top:10px">
+              ${q.status === "sent" ? `<button class="primary" data-accept="${esc(q.id)}">Mark accepted by customer</button>` : ""}
+              <a class="small" href="/admin#quotations/${esc(q.id)}">Open in Quotations</a></div>`;
+          return withDoc(i, quoteCardHtml(q, { actions }), quoteDocData(q));
+        }
+        if (t.type === "estimate") {
+          const saved = t.quotationId
+            ? `<div class="small saved-note">Saved as ${t.number && t.quotationId === state.draftQuotationId ? `draft ${esc(t.number)}` : esc(t.number ?? "a quotation")} · <a href="/admin#quotations/${esc(t.quotationId)}">Open in Quotations</a></div>`
+            : "";
+          const card = quoteCardHtml(t.estimate, { title: t.source === "form" ? "Estimate from job form" : "Estimate", actions: saved });
+          return withDoc(i, card, estimateDocData(t));
+        }
+        if (t.type === "escalation") return `<div class="event">A manager has been flagged to help with this quote.</div>`;
+        if (t.type === "quote_status") return `<div class="event">Quote ${esc(t.number ?? t.quoteId)} was ${esc(t.text)} by a manager.</div>`;
+        if (t.type === "accepted") return `<div class="event">Quote ${esc(t.number ?? t.quoteId)} marked as accepted by the customer.</div>`;
+        return "";
+      });
+      if (sending) parts.push(`<div class="typing">Assistant is typing…</div>`);
+      const box = $("messages");
+      const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      box.innerHTML = parts.join("");
+      fitDocs();
+      if (atBottom || sending) box.scrollTop = box.scrollHeight;
+    }
+
+    // ---------- Quotation document ----------
+    let docs = {};
+    const expandedDocs = new Set();
+    const addDays = (iso, days) => new Date(Date.parse(iso) + days * 86_400_000).toISOString();
+
+    function quoteDocData(q) {
+      return {
+        number: q.number || q.id,
+        issued: q.createdAt,
+        expires: q.validUntil,
+        currency: q.currency,
+        customer: q.customer,
+        project: { name: q.projectName, site: q.siteAddress, description: q.projectSummary },
+        pricing: q,
+        notes: q.notes,
+        company: state.quoteDocument,
+      };
+    }
+
+    // A draft quotation from an estimate, before the formal quote exists.
+    function estimateDocData(t) {
+      const d = t.estimate.details ?? {};
+      const mats = d.materials ?? [d];
+      const list = mats.map((m) => `${m.totalQty} ${unitPlural(m.unit)} of ${m.product}${m.areaM2 ? ` (± ${m.areaM2} m²)` : ""}`);
+      const items = list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list.at(-1)}` : list[0];
+      const parts = [`Supply${d.labourIncluded ? " and installation" : ""} of ${items}`];
+      if (d.delivery) parts.push(`delivered ${d.delivery.km} km`);
+      else parts.push("for collection");
+      return {
+        number: t.number ? `${t.number} (DRAFT)` : "DRAFT",
+        issued: t.at,
+        expires: addDays(t.at, state.quoteDocument.validDays),
+        currency: t.estimate.currency,
+        customer: state.customer,
+        project: { name: mats.map((m) => m.product).join(", "), site: "", description: `${parts.join(" ")}.` },
+        pricing: t.estimate,
+        notes: (d.notes ?? []).join(" "),
+        company: state.quoteDocument,
+      };
+    }
+
+    // The document is laid out at A4 width and scaled down to fit the chat.
+    function fitDocs() {
+      for (const scaler of document.querySelectorAll(".doc-scaler")) {
+        const doc = scaler.firstElementChild;
+        const scale = Math.min(1, scaler.clientWidth / DOC_WIDTH);
+        doc.style.transform = `scale(${scale})`;
+        scaler.style.height = `${doc.offsetHeight * scale}px`;
+      }
+    }
+    window.addEventListener("resize", fitDocs);
+
+    function showError(msg) {
+      $("error").hidden = !msg;
+      $("error").textContent = msg || "";
+    }
+
+    async function start() {
+      session = null;
+      state = await api("/api/chat", { method: "POST" });
+      session = { id: state.id, token: state.token };
+      store(session);
+      render();
+    }
+
+    async function refresh() {
+      if (!session || sending || refreshing) return;
+      refreshing = true;
+      try {
+        state = await api(`/api/chat/${session.id}`);
+        render();
+      } catch (e) {
+        if (e.status === 404) await start();
+      } finally {
+        refreshing = false;
+      }
+    }
+    let refreshing = false;
+
+    $("composer").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = $("input").value.trim();
+      if (!text || sending) return;
+      $("input").value = "";
+      showError("");
+      state.transcript.push({ role: "customer", text });
+      sending = true;
+      $("send").disabled = true;
+      render();
+      try {
+        state = await api(`/api/chat/${session.id}/messages`, { method: "POST", body: JSON.stringify({ text }) });
+      } catch (err) {
+        if (err.body?.transcript) {
+          state = err.body;
+        } else {
+          state.transcript.pop();
+          $("input").value = text;
+        }
+        showError(err.message);
+      } finally {
+        sending = false;
+        $("send").disabled = false;
+        render();
+        $("input").focus();
+      }
+    });
+
+    $("input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        $("composer").requestSubmit();
+      }
+    });
+
+    $("messages").addEventListener("click", async (e) => {
+      const { download, preview } = e.target.dataset ?? {};
+      if (preview !== undefined) {
+        const i = Number(preview);
+        expandedDocs.has(i) ? expandedDocs.delete(i) : expandedDocs.add(i);
+        return render();
+      }
+      if (download !== undefined) {
+        const data = docs[download];
+        if (!data) return;
+        e.target.disabled = true;
+        e.target.textContent = "Preparing PDF…";
+        try {
+          await downloadQuotePdf(data);
+        } catch (err) {
+          showError(err.message);
+        } finally {
+          e.target.disabled = false;
+          e.target.textContent = "Download quotation (PDF)";
+        }
+        return;
+      }
+      const id = e.target.dataset?.accept;
+      if (!id) return;
+      e.target.disabled = true;
+      try {
+        state = await api(`/api/chat/${session.id}/quotes/${id}/accept`, { method: "POST" });
+        render();
+      } catch (err) {
+        showError(err.message);
+        e.target.disabled = false;
+      }
+    });
+
+    // A new chat deletes the old one, including its quotations.
+    $("restart").addEventListener("click", async () => {
+      if (!confirm("Start a new chat? This chat will be cleared. Its quotations stay saved under Quotations.")) return;
+      try {
+        if (session) await api(`/api/chat/${session.id}`, { method: "DELETE" }).catch((e) => { if (e.status !== 404) throw e; });
+        expandedDocs.clear();
+        await start();
+      } catch (e) {
+        showError(e.message);
+      }
+    });
+
+    // Live updates: new prices and products reach the form at once; manager
+    // replies and approvals show up in the chat.
+    let optionsTimer = null;
+    liveUpdates((ev) => {
+      if (["product", "variable", "settings"].includes(ev.type) && jobForm) {
+        clearTimeout(optionsTimer);
+        optionsTimer = setTimeout(async () => {
+          const { formOptions } = await staffApi("/api/form-options");
+          if (state) state.formOptions = formOptions;
+          jobForm.setOptions(formOptions);
+          toast("The price list was updated");
+        }, 300);
+      }
+      if ((ev.type === "conversation" && ev.id === session?.id) || (ev.type === "quotation" && state?.quotes.some((q) => q.id === ev.id))) refresh();
+    });
+
+    session = load();
+    (session ? refresh() : start()).catch((e) => showError(e.message));
+    // Fallback in case the live connection drops.
+    setInterval(refresh, 30000);
+  </script>
+</body>
+</html>
