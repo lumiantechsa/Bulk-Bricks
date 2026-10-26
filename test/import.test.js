@@ -70,6 +70,20 @@ test("the old Profile Brick & Tile name and prefix are renamed once, custom valu
   assert.equal((await store.getSettings()).companyName, "Profile Brick & Tile");
 });
 
+test("the old contact details are replaced with the Mthatha ones once", async (t) => {
+  const db = await openDatabase({});
+  t.after(() => db.close());
+  const store = await createStore(db);
+  await db.query("DELETE FROM settings WHERE key = '_rebrandBulkbrickContact'");
+  await store.updateSettings({ companyPhone: "043 748 2300", companyEmail: "sales@profilebrick.co.za", companyWebsite: "www.bulkbrick.example" }, { name: "Test" });
+  await createStore(db);
+  const s = await store.getSettings();
+  assert.equal(s.companyPhone, "047 532 5404");
+  assert.match(s.companyAddress, /3 Kalika St/);
+  assert.equal(s.companyEmail, "");
+  assert.equal(s.companyWebsite, "www.bulkbrick.example");
+});
+
 test("a too-short ADMIN_PASSWORD is skipped with a warning instead of crashing startup", async (t) => {
   const db = await openDatabase({});
   t.after(() => db.close());

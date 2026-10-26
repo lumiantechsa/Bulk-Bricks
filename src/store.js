@@ -148,17 +148,29 @@ export async function createStore(db, { legacyFile } = {}) {
 }
 
 /**
- * One-off rename from Profile Brick & Tile to Bulkbrick Supplies. Only settings
- * still holding the old defaults change; anything staff typed in themselves stays.
+ * One-off moves from the old Profile Brick & Tile details to Bulkbrick Supplies'.
+ * Only settings still holding the old defaults change; anything staff typed in
+ * themselves stays. Each step runs once, recorded by its marker.
  */
+const REBRAND_STEPS = [
+  ["_rebrandBulkbrick", { companyName: "Profile Brick & Tile", quotePrefix: "PB&T" }],
+  ["_rebrandBulkbrickContact", {
+    companyAddress: "123 Main Road, Beacon Bay\nEast London, 5241\nSouth Africa",
+    companyPhone: "043 748 2300",
+    companyEmail: "sales@profilebrick.co.za",
+    companyWebsite: "www.profilebrick.co.za",
+  }],
+];
+
 async function applyRebrand(store) {
-  const { rows } = await store.db.query("SELECT 1 FROM settings WHERE key = '_rebrandBulkbrick'");
-  if (rows.length) return;
-  const old = { companyName: "Profile Brick & Tile", quotePrefix: "PB&T" };
-  const current = await store.getSettings();
-  const patch = { _rebrandBulkbrick: new Date().toISOString() };
-  for (const [k, v] of Object.entries(old)) if (current[k] === v) patch[k] = defaultSettings[k];
-  await store.updateSettings(patch, { name: "Rebrand to Bulkbrick Supplies" });
+  for (const [marker, old] of REBRAND_STEPS) {
+    const { rows } = await store.db.query("SELECT 1 FROM settings WHERE key = $1", [marker]);
+    if (rows.length) continue;
+    const current = await store.getSettings();
+    const patch = { [marker]: new Date().toISOString() };
+    for (const [k, v] of Object.entries(old)) if (current[k] === v) patch[k] = defaultSettings[k];
+    await store.updateSettings(patch, { name: "Rebrand to Bulkbrick Supplies" });
+  }
 }
 
 /**
