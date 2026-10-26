@@ -118,12 +118,7 @@ const quoteDocumentSettings = (s) => ({
   validDays: s.quoteValidDays,
 });
 
-/**
- * @param {object} options
- * @param {object} [options.demo]  From createDemo(): enables the public demo.
- * @param {boolean} [options.demoMode]  True for the app instance serving one demo sandbox.
- */
-export function createApp({ store, getClient, provider = "openai", demo = null, demoMode = false }) {
+export function createApp({ store, getClient, provider = "openai" }) {
   const app = express();
   // Behind Railway's proxy: take the visitor's address from the one proxy hop.
   app.set("trust proxy", 1);
@@ -134,15 +129,6 @@ export function createApp({ store, getClient, provider = "openai", demo = null, 
 
   const busy = new Set();
   const now = () => new Date().toISOString();
-
-  // ---------- Public demo ----------
-  // Demo visitors get their own sandbox; requests carrying a demo token are
-  // handed to it before any real data is touched.
-  app.get("/api/demo", (_req, res) => res.json({ enabled: !!demo }));
-  if (demo) {
-    app.post("/api/demo/start", demo.start);
-    app.use("/api", demo.gate);
-  }
 
   // ---------- Staff sign-in ----------
 
@@ -166,7 +152,7 @@ export function createApp({ store, getClient, provider = "openai", demo = null, 
     res.json({ token, user });
   });
 
-  app.use("/api", (req, res, next) => (req.path === "/auth/login" || req.path === "/demo" ? next() : requireStaff(req, res, next)));
+  app.use("/api", (req, res, next) => (req.path === "/auth/login" ? next() : requireStaff(req, res, next)));
 
   app.post("/api/auth/logout", async (req, res) => {
     await store.auth.logout(bearer(req));
@@ -175,7 +161,7 @@ export function createApp({ store, getClient, provider = "openai", demo = null, 
 
   app.get("/api/auth/me", async (req, res) => {
     const s = await store.getSettings();
-    res.json({ user: req.user, companyName: s.companyName, currency: s.currency, demo: demoMode });
+    res.json({ user: req.user, companyName: s.companyName, currency: s.currency });
   });
 
   app.post("/api/auth/password", async (req, res) => {

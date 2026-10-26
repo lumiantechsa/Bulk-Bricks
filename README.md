@@ -27,7 +27,6 @@ Open http://localhost:3000 and sign in with username **Test** and password **Tes
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | OpenAI key and model (default `gpt-5.5`) |
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Claude key and model (default `claude-opus-5-5`) |
 | `PORT` | HTTP port (default `3000`) |
-| `DEMO_MODE` | `off` turns off the public demo (on by default) |
 | `DATA_FILE` | The JSON data file from the earlier version. If it exists, its settings, rate-card prices, accessories and quotes are imported once on the first start |
 
 The database schema is created and upgraded automatically on start (`migrations/*.sql`).
@@ -39,17 +38,6 @@ The database schema is created and upgraded automatically on start (`migrations/
 3. Keep `ADMIN_PASSWORD` and the LLM key as before. Railway deploys the default branch automatically.
 
 Several server instances can share one database: changes are broadcast with PostgreSQL `LISTEN/NOTIFY`, so every instance pushes them to its users.
-
-## Public demo
-
-Anyone can try the system without an account. The sign-in page has a **Try the demo** button, and a link ending in `?demo` (e.g. `https://your-site/?demo`) opens the demo straight away. Every visitor gets a private sandbox:
-
-- **Example data only.** The sandbox is filled with the example price list (`src/defaults.js`) and two sample quotations numbered `DEMO-…`. The visitor never sees the real products, prices, quotations or employees.
-- **Fully isolated.** Each sandbox is its own set of tables in a separate in-memory database, never the real one. Requests with a demo token are answered by an app bound to that sandbox, so whatever the visitor adds, edits or deletes can't reach the real system or other visitors.
-- **Clearly marked.** A red banner says it's a demo, with an **Exit demo** button.
-- **Temporary.** A sandbox is deleted after 2 hours without use. There are at most 40 at a time and 10 starts per hour from one address, and each sandbox gets 60 assistant requests, since the demo uses the real AI service.
-
-Set `DEMO_MODE=off` to turn the demo off.
 
 ## Staff and permissions
 
