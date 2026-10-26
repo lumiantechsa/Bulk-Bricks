@@ -1,5 +1,5 @@
 // The printable quotation document shown under a quote in the chat, and its PDF download.
-import { esc } from "/common.js";
+import { esc, logoMarkSvg } from "/common.js";
 
 export const DOC_WIDTH = 794; // A4 width in CSS pixels
 
@@ -31,12 +31,6 @@ const icon = {
   truck: '<svg viewBox="0 0 24 24"><path d="M1 5h13v10H1zm14 3h4l3 4v3h-7z"/><circle cx="5.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg>',
 };
 
-// Classical columns, as in the logo.
-const columnsSvg = `<svg class="qd-columns" viewBox="0 0 64 48">
-  <path d="M2 14 32 2l30 12z" fill="#fff"/><rect x="4" y="15" width="56" height="3" fill="#fff"/>
-  ${[8, 18, 28, 38, 48].map((x) => `<rect x="${x}" y="20" width="6" height="22" fill="#fff"/>`).join("")}
-  <rect x="3" y="43" width="58" height="4" fill="#fff"/></svg>`;
-
 // Grey pavers, clipped to the header's slanted corner. Drawn as an image because
 // the PDF renderer can't paint SVG patterns or clip paths inline.
 const pavingSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 270" preserveAspectRatio="none">
@@ -50,11 +44,11 @@ const pavingSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 270"
     <clipPath id="qdClip"><polygon points="95,0 250,0 250,270 0,270"/></clipPath>
   </defs>
   <g clip-path="url(#qdClip)"><rect width="250" height="270" fill="url(#qdPave)"/></g>
-  <polygon points="82,0 98,0 6,270 -10,270" fill="#e1251b"/>
-  <polygon points="40,270 120,140 120,270" fill="#13306b"/>
+  <polygon points="82,0 98,0 6,270 -10,270" fill="#e17639"/>
+  <polygon points="40,270 120,140 120,270" fill="#0b154a"/>
 </svg>`;
 
-const bricksSvg = `<svg class="qd-bricks" viewBox="0 0 64 48" fill="#13306b">
+const bricksSvg = `<svg class="qd-bricks" viewBox="0 0 64 48" fill="#0b154a">
   <path d="M6 20 26 12l18 7-20 8z"/><path d="M6 20v8l18 7v-8z" opacity=".75"/><path d="M24 27v8l20-8v-8z" opacity=".55"/>
   <path d="M22 32 42 24l18 7-20 8z"/><path d="M22 32v8l18 7v-8z" opacity=".75"/><path d="M40 39v8l20-8v-8z" opacity=".55"/>
   <path d="M28 10 46 3l14 6-18 7z"/><path d="M28 10v6l14 6v-6z" opacity=".75"/><path d="M42 16v6l18-7V9z" opacity=".55"/>
@@ -97,10 +91,7 @@ export function quoteDocHtml(d) {
   return `<div class="qdoc">
     <header class="qd-head">
       <div class="qd-brand">
-        <div class="qd-logo">
-          <div class="qd-logo-main">${columnsSvg}<div><div class="qd-logo-top">${esc(brandTop)}</div><div class="qd-logo-sub">${esc(brandRest.join(" "))}</div></div></div>
-          <div class="qd-logo-red"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 0 H70 C70 55 45 88 0 100 Z" fill="#e1251b"/><path d="M76 0 C76 58 50 93 0 106" fill="none" stroke="#fff" stroke-width="4"/></svg></div>
-        </div>
+        <div class="qd-logo">${logoMarkSvg("qd-mark")}<div><div class="qd-logo-top">${esc(brandTop)}</div><div class="qd-logo-sub">${esc(brandRest.join(" "))}</div></div></div>
         <div class="qd-tagline">${tagline}</div>
       </div>
       <ul class="qd-contact">
@@ -113,7 +104,7 @@ export function quoteDocHtml(d) {
     </header>
 
     <div class="qd-banner">
-      <svg class="qd-banner-bg" viewBox="0 0 760 74" preserveAspectRatio="none"><polygon points="0,0 700,0 760,74 0,74" fill="#13306b"/></svg>
+      <svg class="qd-banner-bg" viewBox="0 0 760 74" preserveAspectRatio="none"><polygon points="0,0 700,0 760,74 0,74" fill="#0b154a"/></svg>
       <h1>QUOTATION</h1><span class="qd-bar"></span><p>${esc(c.subtitle ?? "")}</p>
     </div>
 
@@ -173,7 +164,7 @@ export function quoteDocHtml(d) {
       <div>${icon.check}<span>Trusted brands<br><small>for generations</small></span></div>
       <div>${icon.people}<span>Expert support<br><small>from start to finish</small></span></div>
       <div>${icon.truck}<span>Building stronger<br><small>communities together</small></span></div>
-      <div class="qd-slogan"><svg viewBox="0 0 200 64" preserveAspectRatio="none"><polygon points="24,0 200,0 200,64 0,64" fill="#e1251b"/></svg><span>More than just bricks.</span></div>
+      <div class="qd-slogan"><svg viewBox="0 0 200 64" preserveAspectRatio="none"><polygon points="24,0 200,0 200,64 0,64" fill="#e17639"/></svg><span>More than just bricks.</span></div>
     </footer>
   </div>`;
 }

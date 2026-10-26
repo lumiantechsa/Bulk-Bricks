@@ -47,7 +47,7 @@ const getClient = () => (client ??= provider === "openai" ? new OpenAI() : new A
 const demo = process.env.DEMO_MODE === "off" ? null : createDemo({ createApp, getClient, provider });
 
 createApp({ store, getClient, provider, demo }).listen(port, () => {
-  console.log(`Profile Brick & Tile quoting system (${provider}, ${modelFor(provider)}, ${db.kind}) running:`);
+  console.log(`Bulkbrick Supplies quoting system (${provider}, ${modelFor(provider)}, ${db.kind}) running:`);
   console.log(`  Quoting assistant: http://localhost:${port}/`);
   console.log(`  Quotations, pricing and staff: http://localhost:${port}/admin`);
   if (demo) console.log(`  Public demo (no sign-in): http://localhost:${port}/?demo`);

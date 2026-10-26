@@ -1,4 +1,4 @@
-# Profile Brick & Tile quoting system
+# Bulkbrick Supplies quoting system
 
 An internal quotation system for a brick, paving and tile supplier. Employees sign in and use three connected sections, all in the left sidebar:
 

@@ -52,3 +52,20 @@ test("the old JSON data file is imported once: settings, edited prices and quote
   assert.equal((await store.getProduct("clay_stock")).unitPrice, 4);
   assert.equal((await store.quotations.list()).length, 2);
 });
+
+test("the old Profile Brick & Tile name and prefix are renamed once, custom values are kept", async (t) => {
+  const db = await openDatabase({});
+  t.after(() => db.close());
+  const store = await createStore(db);
+  await db.query("DELETE FROM settings WHERE key = '_rebrandBulkbrick'");
+  await store.updateSettings({ companyName: "Profile Brick & Tile", quotePrefix: "PBT" }, { name: "Test" });
+  await createStore(db);
+  const s = await store.getSettings();
+  assert.equal(s.companyName, "Bulkbrick Supplies");
+  assert.equal(s.quotePrefix, "PBT");
+
+  // Once done, a name set deliberately afterwards stays.
+  await store.updateSettings({ companyName: "Profile Brick & Tile" }, { name: "Test" });
+  await createStore(db);
+  assert.equal((await store.getSettings()).companyName, "Profile Brick & Tile");
+});
