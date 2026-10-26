@@ -4,7 +4,6 @@ import { createApp } from "./src/app.js";
 import { openDatabase } from "./src/db.js";
 import { createStore } from "./src/store.js";
 import { modelFor } from "./src/agent.js";
-import { createDemo } from "./src/demo.js";
 
 const port = Number(process.env.PORT) || 3000;
 
@@ -43,12 +42,8 @@ if (await store.auth.ensureAccount({ username: "Test", name: "Test", password: "
 let client;
 const getClient = () => (client ??= provider === "openai" ? new OpenAI() : new Anthropic());
 
-// Public demo with example data in isolated sandboxes. DEMO_MODE=off turns it off.
-const demo = process.env.DEMO_MODE === "off" ? null : createDemo({ createApp, getClient, provider });
-
-createApp({ store, getClient, provider, demo }).listen(port, () => {
+createApp({ store, getClient, provider }).listen(port, () => {
   console.log(`Bulkbrick Supplies quoting system (${provider}, ${modelFor(provider)}, ${db.kind}) running:`);
   console.log(`  Quoting assistant: http://localhost:${port}/`);
   console.log(`  Quotations, pricing and staff: http://localhost:${port}/admin`);
-  if (demo) console.log(`  Public demo (no sign-in): http://localhost:${port}/?demo`);
 });

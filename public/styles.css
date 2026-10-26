@@ -308,9 +308,3 @@ table.list tr.inactive td { opacity: 0.55; }
 .qd-slogan svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .qd-slogan span { position: relative; font: italic 400 25px/1 "Brush Script MT", "Segoe Script", cursive; text-transform: none; letter-spacing: 0; transform: rotate(-6deg); }
 
-/* ---------- Demo mode ---------- */
-.demo-banner { position: sticky; top: 0; z-index: 30; background: #e1251b; color: #fff; font-size: 13px; padding: 6px 16px; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; text-align: center; }
-.demo-banner button { background: #fff; color: #13306b; border: none; padding: 3px 10px; }
-body:has(.demo-banner) .side, body:has(.demo-banner) .workspace, body:has(.demo-banner) .chat-shell { height: calc(100dvh - 32px); }
-body:has(.demo-banner) .side { top: 32px; }
-.demo-cta { border-top: 1px solid var(--border); padding-top: 14px; }

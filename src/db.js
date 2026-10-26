@@ -94,50 +94,6 @@ async function openPglite(dir) {
   };
 }
 
-/**
- * One in-memory database that holds many isolated schemas: the demo sandboxes.
- * Created on demand, so a server without demo visitors doesn't pay for it.
- */
-export async function openSandboxHost() {
-  const { PGlite } = await import("@electric-sql/pglite");
-  const pglite = new PGlite();
-  await pglite.waitReady;
-  return pglite;
-}
-
-/**
- * A database confined to its own schema on the sandbox host. Every query runs
- * in a transaction that sets the search path to that schema first, so it can
- * only see its own tables. Same interface as openDatabase(); close() drops it.
- */
-export async function openSchemaDatabase(pglite, schema) {
-  if (!/^[a-z][a-z0-9_]{0,40}$/.test(schema)) throw new Error(`Invalid schema name: ${schema}`);
-  await pglite.exec(`CREATE SCHEMA ${schema}`);
-  const scoped = (fn) =>
-    pglite.transaction(async (tx) => {
-      await tx.query(`SET LOCAL search_path TO ${schema}`);
-      return fn(tx);
-    });
-  const channel = `app_events_${schema}`;
-  const unlisten = [];
-  const db = {
-    kind: "sandbox",
-    query: (sql, params) => scoped((tx) => tx.query(sql, params)),
-    exec: (sql) => scoped((tx) => tx.exec(sql)),
-    transaction: (fn) => scoped((tx) => fn({ query: (sql, params) => tx.query(sql, params) })),
-    async onEvent(fn) {
-      unlisten.push(await pglite.listen(channel, fn));
-    },
-    notify: (payload) => pglite.query("SELECT pg_notify($1, $2)", [channel, JSON.stringify(payload)]),
-    async close() {
-      for (const stop of unlisten.splice(0)) await stop();
-      await pglite.exec(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
-    },
-  };
-  await migrate(db);
-  return db;
-}
-
 /** Applies every migrations/*.sql file that hasn't run yet, in name order. */
 async function migrate(db) {
   await db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (

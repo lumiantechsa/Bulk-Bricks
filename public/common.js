@@ -108,48 +108,13 @@ export async function api(path, options = {}) {
 
 export const can = (user, permission) => !!user?.permissions?.includes(permission);
 
-let demoSession = false;
-
-// Demo mode: a slim banner on every page, so it's always clear the data is
-// an example and nothing affects the real system.
-function showDemoBanner() {
-  if (document.querySelector(".demo-banner")) return;
-  document.body.insertAdjacentHTML("afterbegin", `<div class="demo-banner" role="status">
-    <b>Demo mode</b> · Example products, prices and quotations. Anything you add, change or delete stays in this demo
-    and never affects the real system. <button class="small" data-exit-demo>Exit demo</button></div>`);
-  document.querySelector("[data-exit-demo]").addEventListener("click", signOut);
-}
-
-async function startDemo() {
-  const { token } = await api("/api/demo/start", { method: "POST" });
-  setToken(token);
-  return api("/api/auth/me");
-}
-
 /**
- * Shows the sign-in form until the employee signs in (or starts the demo);
- * resolves with { user, companyName, currency, demo }. Opening the site with
- * ?demo in the address starts a demo straight away.
+ * Shows the sign-in form until the employee signs in; resolves with
+ * { user, companyName, currency }.
  */
 export async function signIn(root) {
-  const done = (me) => {
-    demoSession = !!me.demo;
-    if (demoSession) showDemoBanner();
-    return me;
-  };
   if (getToken()) {
-    try { return done(await api("/api/auth/me")); } catch { setToken(""); }
-  }
-  const { enabled: demoEnabled } = await api("/api/demo").catch(() => ({ enabled: false }));
-  if (demoEnabled && new URLSearchParams(location.search).has("demo")) {
-    root.innerHTML = `<div class="loading">Preparing your demo…</div>`;
-    try {
-      const me = await startDemo();
-      history.replaceState(null, "", location.pathname + location.hash);
-      return done(me);
-    } catch (err) {
-      console.error(err);
-    }
+    try { return await api("/api/auth/me"); } catch { setToken(""); }
   }
   return new Promise((resolve) => {
     const draw = (error = "") => {
@@ -160,10 +125,6 @@ export async function signIn(root) {
         <label>Password<input type="password" id="pw" autocomplete="current-password" required /></label>
         ${error ? `<div class="error" style="padding:0">${esc(error)}</div>` : ""}
         <button class="primary" style="width:100%">Sign in</button>
-        ${demoEnabled ? `<div class="demo-cta">
-          <button type="button" id="demo" style="width:100%">Try the demo – no sign-in needed</button>
-          <p class="muted small" style="margin:6px 0 0">Generate quotations with example products and prices. The demo is
-          private to you and can't see or change the real system.</p></div>` : ""}
       </form>`;
       root.querySelector("#login").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -173,16 +134,7 @@ export async function signIn(root) {
             body: JSON.stringify({ username: root.querySelector("#username").value, password: root.querySelector("#pw").value }),
           });
           setToken(token);
-          resolve(done(await api("/api/auth/me")));
-        } catch (err) {
-          draw(err.message);
-        }
-      });
-      root.querySelector("#demo")?.addEventListener("click", async (e) => {
-        e.target.disabled = true;
-        e.target.textContent = "Preparing your demo…";
-        try {
-          resolve(done(await startDemo()));
+          resolve(await api("/api/auth/me"));
         } catch (err) {
           draw(err.message);
         }
@@ -215,7 +167,7 @@ export function sidebarHtml({ active, user, extra = [] }) {
     ${extra.length ? `<div class="nav-label">Manage</div><nav class="main-nav">${extra.map(([k, l, b]) => link(k, `/admin#${k}`, l, b)).join("")}</nav>` : ""}
     <div class="side-user">
       <div><b>${esc(user.name)}</b><div class="muted small">${esc(user.roleLabel)}</div></div>
-      <div class="row">${demoSession ? `<button class="small" data-signout>Exit demo</button>` : `<a href="/admin#account" class="small">My account</a><button class="small" data-signout>Sign out</button>`}</div>
+      <div class="row"><a href="/admin#account" class="small">My account</a><button class="small" data-signout>Sign out</button></div>
     </div>
   </aside>`;
 }

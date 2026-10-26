@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import { createApp } from "../src/app.js";
 import { openDatabase } from "../src/db.js";
 import { createStore } from "../src/store.js";
-import { createDemo } from "../src/demo.js";
 
 // Scripted stand-in for the Anthropic client: each call returns the next response.
 export function fakeClient(script) {
@@ -70,12 +69,11 @@ async function testDatabase() {
  * Starts the app on an in-memory database with an administrator ("admin") and
  * a salesperson ("sam"). `req` signs requests as `as: "admin" | "sam" | token`.
  */
-export async function startServer(client, provider = "anthropic", { demo: demoOptions } = {}) {
+export async function startServer(client, provider = "anthropic") {
   const { db, drop } = await testDatabase();
   const store = await createStore(db);
   await store.auth.bootstrap({ username: "admin", password: "admin-password" });
-  const demo = demoOptions ? createDemo({ createApp, getClient: () => client, provider, ...demoOptions }) : null;
-  const app = createApp({ store, getClient: () => client, provider, demo });
+  const app = createApp({ store, getClient: () => client, provider });
   const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
   const tokens = {};
@@ -97,11 +95,10 @@ export async function startServer(client, provider = "anthropic", { demo: demoOp
   const close = async () => {
     server.closeAllConnections();
     await new Promise((r) => server.close(r));
-    await demo?.closeAll();
     await db.close();
     await drop();
   };
-  return { store, server, req, base, tokens, close, demo };
+  return { store, server, req, base, tokens, close };
 }
 
 export const brickJob = {
