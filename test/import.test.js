@@ -69,3 +69,11 @@ test("the old Profile Brick & Tile name and prefix are renamed once, custom valu
   await createStore(db);
   assert.equal((await store.getSettings()).companyName, "Profile Brick & Tile");
 });
+
+test("a too-short ADMIN_PASSWORD is skipped with a warning instead of crashing startup", async (t) => {
+  const db = await openDatabase({});
+  t.after(() => db.close());
+  const store = await createStore(db);
+  assert.equal(await store.auth.bootstrap({ username: "admin", password: "short" }), null);
+  assert.equal((await store.auth.listUsers()).length, 0);
+});

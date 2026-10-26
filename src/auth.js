@@ -97,6 +97,11 @@ export function createAuth({ db, audit, emit }) {
     async bootstrap({ username = "admin", password }) {
       const { rows } = await db.query("SELECT count(*)::int AS n FROM staff_users");
       if (rows[0].n || !password) return null;
+      // A bad ADMIN_PASSWORD mustn't stop the server starting: warn and carry on.
+      if (password.length < 8) {
+        console.warn("ADMIN_PASSWORD is shorter than 8 characters, so no administrator was created from it. Set a longer one.");
+        return null;
+      }
       const user = await auth.createUser({ username, name: "Administrator", role: "admin", password }, null);
       console.log(`Created the first administrator account "${user.username}" (password: ADMIN_PASSWORD).`);
       return user;
