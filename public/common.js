@@ -3,6 +3,13 @@
 export const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+// The Bulkbrick pyramid of bricks, from the logo. Inline so the PDF renderer can paint it.
+export const logoMarkSvg = (cls = "") => `<svg class="${cls}" viewBox="0 0 100 90" aria-hidden="true"><g fill="none" stroke="#e17639" stroke-width="6">
+  <path d="M50 5 96 85H4z" stroke-width="7"/><path d="M37.9 25h24.2M27.6 43h44.8M16.1 63h67.8M57 25v18M33 43v20M57 63v22"/></g></svg>`;
+
+// The logo lock-up for the sidebar and sign-in screen.
+const brandMark = `<div class="brand-mark">${logoMarkSvg()}<div><b>Bulkbrick</b><span>Supplies</span></div></div>`;
+
 export const money = (n, currency = "USD") =>
   new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n ?? 0);
 
@@ -147,7 +154,7 @@ export async function signIn(root) {
   return new Promise((resolve) => {
     const draw = (error = "") => {
       root.innerHTML = `<form class="login panel stack" style="padding:24px" id="login">
-        <div class="brand-mark">Profile Brick &amp; Tile</div>
+        ${brandMark}
         <h2 style="margin:0">Staff sign-in</h2>
         <label>Username<input id="username" autocomplete="username" autofocus required /></label>
         <label>Password<input type="password" id="pw" autocomplete="current-password" required /></label>
@@ -199,7 +206,7 @@ export function sidebarHtml({ active, user, extra = [] }) {
   const link = (key, href, label, badge) =>
     `<a href="${href}" data-nav="${key}" class="${active === key ? "on" : ""}"><span>${label}</span>${badge ? `<span class="badge pending_review">${badge}</span>` : ""}</a>`;
   return `<aside class="side">
-    <div class="brand-mark">Profile Brick &amp; Tile</div>
+    ${brandMark}
     <nav class="main-nav">
       ${link("assistant", "/", "AI Quoting Assistant")}
       ${link("quotations", "/admin#quotations", "Quotations")}

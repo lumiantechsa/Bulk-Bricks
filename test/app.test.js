@@ -37,11 +37,11 @@ test("employee gets a quote, a manager approves it, it's marked accepted", async
   const quote = r1.body.quotes[0];
   assert.equal(quote.status, "pending_review");
   // The estimate's draft became the quote, so it keeps the first number.
-  assert.match(quote.number, new RegExp(`^PB&T-${new Date().getFullYear()}-0001$`));
+  assert.match(quote.number, new RegExp(`^BBS-${new Date().getFullYear()}-0001$`));
   assert.equal(quote.projectName, "Boundary wall");
   assert.equal(quote.customer.company, "Dana's Deli");
   assert.match(quote.lines[0].detail, /5% wastage/);
-  assert.equal(r1.body.quoteDocument.companyName, "Profile Brick & Tile");
+  assert.equal(r1.body.quoteDocument.companyName, "Bulkbrick Supplies");
   assert.equal(quote.details.materials[0].totalQty, 10500);
   assert.equal(quote.lines.at(-1).sku, "SAND-BLD");
   assert.ok(r1.body.transcript.some((t) => t.type === "estimate" && t.source === "agent" && t.quotationId === quote.id));

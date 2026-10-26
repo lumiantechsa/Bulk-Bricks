@@ -4,7 +4,7 @@
 // All prices are made-up example figures in South African rand (ZAR), excl. VAT.
 
 export const defaultSettings = {
-  companyName: "Profile Brick & Tile",
+  companyName: "Bulkbrick Supplies",
   currency: "ZAR",
   taxRatePercent: 15,
   // The agent may apply up to this discount on its own; anything above escalates.
@@ -22,7 +22,7 @@ export const defaultSettings = {
   companyPhone: "043 748 2300",
   companyEmail: "sales@profilebrick.co.za",
   companyWebsite: "www.profilebrick.co.za",
-  quotePrefix: "PB&T",
+  quotePrefix: "BBS",
   quoteSubtitle: "Paving solutions for homes & businesses",
   quoteSignatory: "",
   quoteSignatoryTitle: "Sales Consultant",

@@ -143,7 +143,22 @@ export async function createStore(db, { legacyFile } = {}) {
 
   await catalog.seed();
   if (legacyFile) await importLegacyFile(store, legacyFile);
+  await applyRebrand(store);
   return store;
+}
+
+/**
+ * One-off rename from Profile Brick & Tile to Bulkbrick Supplies. Only settings
+ * still holding the old defaults change; anything staff typed in themselves stays.
+ */
+async function applyRebrand(store) {
+  const { rows } = await store.db.query("SELECT 1 FROM settings WHERE key = '_rebrandBulkbrick'");
+  if (rows.length) return;
+  const old = { companyName: "Profile Brick & Tile", quotePrefix: "PB&T" };
+  const current = await store.getSettings();
+  const patch = { _rebrandBulkbrick: new Date().toISOString() };
+  for (const [k, v] of Object.entries(old)) if (current[k] === v) patch[k] = defaultSettings[k];
+  await store.updateSettings(patch, { name: "Rebrand to Bulkbrick Supplies" });
 }
 
 /**
